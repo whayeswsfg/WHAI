@@ -58,11 +58,78 @@ async def rag_ingest_pdf(ctx: inngest.Context):
     ingested = await ctx.step.run("embed-and-upstart", lambda: _upsert(chunks_and_src), output_type=RAGUpsertResult)
     return ingested.model_dump() #convert to json or python format
 
+#another inngest function for querying the PDF files that we ingested and stored in the Vector DB
+@inngest_client.create_function(
+    fn_id="RAG: Query PDF",
+    trigger=inngest.TriggerEvent(event="rag/query_pdf_ai")
+)
+async def rag_query_pdf_ai(ctx: inngest.Context):
+    def _search(question: str, top_k: int=5) -> RAGSearchResult:
+        query_vec = embed_texts([question])[0]
+        store = QdrantStorage()
+        found = store.search(query_vec, top_k)
+        return RAGSearchResult(contexts=found["contexts"], sources=found["sources"])
+
+    question = ctx.event.data["question"]
+    top_k = int(ctx.event.data.get("top_k",3)) #retrieve the 3 most relevant chunnks
+
+    found = await ctx.step.run("RAGResponse-embed-and-search", lambda :_search(question,top_k), output_type=RAGSearchResult)
+
+    context_block = "\n\n".join(f"- {c}" for c in found.contexts)
+    user_content = (
+        "Use the retrieved document excerpts below to answer the question.\n\n"
+        "=== RETRIEVED CONTEXT ===\n"
+        f"{context_block}\n"
+        "=== END CONTEXT ===\n\n"
+        f"Question: {question}\n\n"
+        "Provide a clear, concise answer based only on the retrieved context."
+    )
+
+    #using OPENAI with my key.
+    adapter = ai.openai.Adapter(
+        auth_key=os.getenv("OPENAI_API_KEY"),
+        model="gpt-4o-mini" #using a mini LLM so it isn't too expensive
+      # model="gpt-5.6-luna" #current - 8/29/26 - generation option; cost sensative
+    )
+
+    #generate the response from the question asked
+    res = await ctx.step.ai.infer(
+        "llm-answer",
+        adapter=adapter,
+        body={
+            "max_tokens": 1024,
+            #"max_completion_tokens": 1024, #with "gpt-5.6-luna"
+            "temperature": 0.2,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "Answer the user's question using only the provided context. "
+                        "Do not use outside knowledge. "
+                        "If the context does not contain enough information to answer "
+                        "the question, say that the information was not found in the document."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": user_content
+                }
+            ]
+        }
+    )
+    #default from openai. we can pass multiple things
+    answer = res["choices"][0]["message"]["content"].strip() #strip out leading or trailing white spaces
+    return {"answer": answer, "sources": found.sources, "num_contexts": len(found.contexts)}
+
+
+
+
 
 #name of the application to run
 app = FastAPI()
 
-inngest.fast_api.serve(app, inngest_client, [rag_ingest_pdf])
+#this is where you add the functions to be made available in inngest
+inngest.fast_api.serve(app, inngest_client, [rag_ingest_pdf, rag_query_pdf_ai])
 
 #'server btwn api and client to upload a pdf the inngest function will forward it to the API'
 
