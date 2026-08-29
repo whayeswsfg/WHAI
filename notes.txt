@@ -1,0 +1,40 @@
+uv is a Python project and package management tool made by Astral. For your AIAgent_RAGProdApp, think of it as the tool that manages the Python environment and all the libraries your AI application needs.
+uv is a modern python project/package manager from Astral
+
+.venv is in tact
+-install uv within the .venv
+python -m pip install uv
+
+uv --version
+
+add dependencies
+within your new project folder
+1) uv init .
+2) uv add fastapi inngest llama-index-core llama-index-readers-file python-dotenv qdrant-client uvicorn streamlit openai
+3) create a .env file and put your openai key in it:  OPENAI_API_KEY=[OPEN AI KEY]
+4) create main.py
+
+what is FASTAPI?
+
+using nodejs run the dev server connect the appliaction on port 8000 the endpoint.  the endpoint will run the api
+1)  uv run uvicorn main:app
+output:  Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+
+after that, start inngest
+2) npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest --no-discovery
+
+         - http://169.254.255.159:8288
+         - http://169.254.99.41:8288
+         - http://169.254.31.28:8288
+         - http://169.254.160.165:8288
+         - http://169.254.35.222:8288
+         - http://192.168.1.198:8288
+         - http://169.254.244.83:8288
+         - http://127.0.0.1:8288 (http://localhost:8288)
+
+
+then go to the browser to open inngest
+3) http://localhost:8288/runs
+
+the front end ui for inngest will now run on http://localhost:8288
+

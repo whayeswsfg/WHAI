@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Environment / secrets
+.env
+.venv/
+
+# Node
+node_modules/
+
+# PyCharm
+.idea/
+
+# Local vector DB / generated data
+qdrant_storage/
+
+# Notes if you don't want them in Git
+notes.txt
